@@ -4,14 +4,16 @@ services:
   db:
     image: postgres:16
     container_name: student_portal_db
+    restart: always
     environment:
       POSTGRES_DB: ${DATABASE_NAME}
       POSTGRES_USER: ${DATABASE_USER}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Expose internally on 5433 to avoid host 5432 conflict if needed locally on host
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_NAME}"]
       interval: 10s
@@ -21,10 +23,11 @@ services:
   redis:
     image: redis:7-alpine
     container_name: student_portal_redis
+    restart: always
+    # Do NOT map port 6379 to the host so it doesn't conflict with other projects.
+    # Other containers in this docker-compose will access it internally via "redis:6379".
     volumes:
       - redis_data:/data
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -34,17 +37,15 @@ services:
   web:
     build: .
     container_name: student_portal_web
-    command: >
-      sh -c "python manage.py makemigrations &&
-             python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
-             python manage.py runserver 0.0.0.0:8000"
+    restart: always
+    # Replaced runserver with gunicorn for production
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3
     volumes:
-      - .:/app
       - static_volume:/app/staticfiles
       - media_volume:/app/media
+    # Mapped to host port 8001 (or another free port) to avoid conflict with project #1
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8001:8000"
     env_file:
       - .env
     depends_on:
@@ -56,9 +57,10 @@ services:
   celery:
     build: .
     container_name: student_portal_celery
+    restart: always
     command: celery -A config worker --loglevel=info
     volumes:
-      - .:/app
+      - media_volume:/app/media
     env_file:
       - .env
     depends_on:
@@ -70,9 +72,10 @@ services:
   celery-beat:
     build: .
     container_name: student_portal_celery_beat
+    restart: always
     command: celery -A config beat --loglevel=info
     volumes:
-      - .:/app
+      - media_volume:/app/media
     env_file:
       - .env
     depends_on:
