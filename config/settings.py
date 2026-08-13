@@ -76,7 +76,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 
-
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {
