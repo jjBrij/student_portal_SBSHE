@@ -1,15 +1,22 @@
-services:
-  # 1. Main Django Web App
-  - type: web
-    name: student-portal-web
-    env: python
-    buildCommand: "./build.sh"
-    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+# 1. Environment group to share identical variables across web and workers
+envVarGroups:
+  - name: student-portal-shared-env
     envVars:
       - key: SECRET_KEY
         generateValue: true
       - key: DEBUG
         value: "False"
+
+services:
+  # 2. Main Django Web App
+  - type: web
+    name: student-portal-web
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+    envVarGroups:
+      - student-portal-shared-env
+    envVars:
       - key: DATABASE_URL
         fromDatabase:
           name: student-portal-db
@@ -20,15 +27,15 @@ services:
           name: student-portal-redis
           property: connectionString
 
-  # 2. Celery Worker
+  # 3. Celery Worker
   - type: worker
     name: student-portal-celery-worker
     env: python
     buildCommand: "pip install -r requirements.txt"
     startCommand: "celery -A config worker --loglevel=info"
+    envVarGroups:
+      - student-portal-shared-env
     envVars:
-      - key: SECRET_KEY
-        sync: false # Prompts for input or shares env group in Render UI
       - key: DATABASE_URL
         fromDatabase:
           name: student-portal-db
@@ -39,15 +46,15 @@ services:
           name: student-portal-redis
           property: connectionString
 
-  # 3. Celery Beat Scheduler
+  # 4. Celery Beat Scheduler
   - type: worker
     name: student-portal-celery-beat
     env: python
     buildCommand: "pip install -r requirements.txt"
     startCommand: "celery -A config beat --loglevel=info"
+    envVarGroups:
+      - student-portal-shared-env
     envVars:
-      - key: SECRET_KEY
-        sync: false
       - key: DATABASE_URL
         fromDatabase:
           name: student-portal-db
@@ -58,13 +65,13 @@ services:
           name: student-portal-redis
           property: connectionString
 
-  # 4. Redis Cache / Message Broker
+  # 5. Redis Cache / Message Broker
   - type: redis
     name: student-portal-redis
-    ipAllowList: [] # internal access only
+    maxmemoryPolicy: noeviction
 
 databases:
-  # 5. PostgreSQL Database
+  # 6. PostgreSQL Database
   - name: student-portal-db
     databaseName: student_portal
     databaseUser: student_user
