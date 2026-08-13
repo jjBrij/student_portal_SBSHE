@@ -11,11 +11,11 @@ services:
   # 2. Main Django Web App
   - type: web
     name: student-portal-web
-    env: python
+    runtime: python
     buildCommand: "./build.sh"
     startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
     envVarGroups:
-      - student-portal-shared-env
+      - name: student-portal-shared-env
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -30,11 +30,11 @@ services:
   # 3. Celery Worker
   - type: worker
     name: student-portal-celery-worker
-    env: python
+    runtime: python
     buildCommand: "pip install -r requirements.txt"
     startCommand: "celery -A config worker --loglevel=info"
     envVarGroups:
-      - student-portal-shared-env
+      - name: student-portal-shared-env
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -49,11 +49,11 @@ services:
   # 4. Celery Beat Scheduler
   - type: worker
     name: student-portal-celery-beat
-    env: python
+    runtime: python
     buildCommand: "pip install -r requirements.txt"
     startCommand: "celery -A config beat --loglevel=info"
     envVarGroups:
-      - student-portal-shared-env
+      - name: student-portal-shared-env
     envVars:
       - key: DATABASE_URL
         fromDatabase:
