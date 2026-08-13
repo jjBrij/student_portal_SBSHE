@@ -66,6 +66,7 @@ services:
   - type: redis
     name: student-portal-redis
     maxmemoryPolicy: noeviction
+    ipAllowList: [] # Allows internal access while securing public access
 
 databases:
   # 5. PostgreSQL Database
