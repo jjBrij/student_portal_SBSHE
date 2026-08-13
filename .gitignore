@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environment
+venv/
+env/
+ENV/
+.venv/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+
+# Static/media generated files
+/static/
+/staticfiles/
+/media/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python packaging
+*.egg-info/
+dist/
+build/
+
+# Docker
+docker-compose.override.yml
+
+# Celery
+celerybeat-schedule
+
+# Coverage
+.coverage
+htmlcov/
+.pytest_cache/
