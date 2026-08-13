@@ -1,0 +1,76 @@
+services:
+  # 1. Main Django Web App
+  - type: web
+    name: student-portal-web
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: student-portal-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: student-portal-redis
+          property: connectionString
+
+  # 2. Celery Worker
+  - type: worker
+    name: student-portal-celery-worker
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "celery -A config worker --loglevel=info"
+    envVars:
+      - key: SECRET_KEY
+        fromService:
+          type: web
+          name: student-portal-web
+          property: SECRET_KEY
+      - key: DATABASE_URL
+        fromDatabase:
+          name: student-portal-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: student-portal-redis
+          property: connectionString
+
+  # 3. Celery Beat Scheduler
+  - type: worker
+    name: student-portal-celery-beat
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "celery -A config beat --loglevel=info"
+    envVars:
+      - key: SECRET_KEY
+        fromService:
+          type: web
+          name: student-portal-web
+          property: SECRET_KEY
+      - key: DATABASE_URL
+        fromDatabase:
+          name: student-portal-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: student-portal-redis
+          property: connectionString
+
+  # 4. Redis Cache / Message Broker
+  - type: redis
+    name: student-portal-redis
+    ipAllowList: [] # internal access only
+
+databases:
+  # 5. PostgreSQL Database
+  - name: student-portal-db
+    databaseName: student_portal
+    user: postgres
