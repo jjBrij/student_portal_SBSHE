@@ -195,7 +195,7 @@ class BranchAdmin(admin.ModelAdmin):
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
     list_display = [
-        'name', 'slug', 'department', 'course_type', 'duration',
+        'name', 'slug', 'course_code ', 'department', 'course_type', 'duration',
         'image_preview', 'is_top_course', 'is_active', 
         'assignment_count', 'created_at'
     ]
@@ -208,7 +208,7 @@ class CourseAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('department', 'name', 'slug', 'image')
+            'fields': ('department', 'name', 'slug', 'course_code', 'image')
         }),
         ('Description', {
             'fields': ('introduction', 'full_description')
