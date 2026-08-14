@@ -1,12 +1,12 @@
-# sbshe_student_portal/views.py - Complete file without swagger decorators
-from rest_framework import viewsets
-from rest_framework.decorators import action
+# sbshe_student_portal/views.py - COMPLETE FIX
+from rest_framework import viewsets, status
+from rest_framework.decorators import action, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from django.core.cache import cache
+from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from django.views.decorators.cache import cache_page
 from .models import Department, Branch, Course, Assignment
 from .serializers import (
     DepartmentSerializer, BranchSerializer, CourseListSerializer,
@@ -18,23 +18,20 @@ from .permissions import IsAdminUser, IsAdminOrReadOnly
 
 
 class DepartmentViewSet(viewsets.ModelViewSet):
-    """
-    Department ViewSet
-    Provides CRUD operations for departments
-    
-    ## Permissions:
-    - GET: Anyone can view
-    - POST/PUT/PATCH/DELETE: Admin only
-    """
+  
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
-    permission_classes = [IsAdminOrReadOnly]
     filterset_class = DepartmentFilter
     search_fields = ['name', 'description', 'introduction']
     ordering_fields = ['name', 'created_at', 'updated_at']
     
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+    def get_permissions(self):
+      
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [AllowAny]
+        else:
+            permission_classes = [IsAdminUser]
+        return [permission() for permission in permission_classes]
     
     def perform_create(self, serializer):
         instance = serializer.save()
@@ -75,22 +72,18 @@ class DepartmentViewSet(viewsets.ModelViewSet):
 
 
 class BranchViewSet(viewsets.ModelViewSet):
-    """
-    Branch ViewSet
-    Provides CRUD operations for branches
-    
-    ## Permissions:
-    - GET: Anyone can view
-    - POST/PUT/PATCH/DELETE: Admin only
-    """
+  
     queryset = Branch.objects.all()
     serializer_class = BranchSerializer
-    permission_classes = [IsAdminOrReadOnly]
     search_fields = ['name', 'description', 'location']
     ordering_fields = ['name', 'created_at', 'updated_at']
     
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [AllowAny]
+        else:
+            permission_classes = [IsAdminUser]
+        return [permission() for permission in permission_classes]
     
     def perform_create(self, serializer):
         instance = serializer.save()
@@ -118,37 +111,23 @@ class BranchViewSet(viewsets.ModelViewSet):
 
 
 class CourseViewSet(viewsets.ModelViewSet):
-    """
-    Course ViewSet
-    Provides CRUD operations for courses with dynamic filters
-    
-    ## Permissions:
-    - GET: Anyone can view
-    - POST/PUT/PATCH/DELETE: Admin only
-    
-    ## Filtering Options:
-    - `?search=keyword` - Search in name, introduction, description
-    - `?department=slug` - Filter by department
-    - `?course_type=online` - Filter by course type
-    - `?is_active=true` - Filter active courses
-    - `?is_top_course=true` - Filter top courses
-    - `?ordering=name` - Order by name
-    - `?ordering=-created_at` - Order by newest first
-    - `?page=1&page_size=20` - Pagination
-    """
+   
     queryset = Course.objects.select_related('department').prefetch_related('assignments')
-    permission_classes = [IsAdminOrReadOnly]
     filterset_class = CourseFilter
-    search_fields = ['name', 'introduction', 'full_description', 'department__name']
-    ordering_fields = ['name', 'created_at', 'updated_at']
+    search_fields = ['name', 'introduction', 'course_code','full_description', 'department__name']
+    ordering_fields = ['name', 'course_code','created_at', 'updated_at']
+    
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve', 'top_courses', 'filters']:
+            permission_classes = [AllowAny]
+        else:
+            permission_classes = [IsAdminUser]
+        return [permission() for permission in permission_classes]
     
     def get_serializer_class(self):
         if self.action == 'list':
             return CourseListSerializer
         return CourseDetailSerializer
-    
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
     
     def perform_create(self, serializer):
         instance = serializer.save()
@@ -177,9 +156,22 @@ class CourseViewSet(viewsets.ModelViewSet):
             object_id=instance.id
         )
     
+    def perform_destroy(self, instance):
+        cache.delete('courses_queryset_*')
+        cache.delete('filters_data')
+        cache.delete('top_courses')
+        user_id = self.request.user.id if self.request.user.is_authenticated else None
+        log_admin_action_task.delay(
+            user_id=user_id,
+            action='delete',
+            model='Course',
+            object_id=instance.id
+        )
+        instance.delete()
+    
     @action(detail=False, methods=['get'])
     def top_courses(self, request):
-        """Get top courses with caching"""
+        """Get top courses - Public access"""
         cache_key = 'top_courses'
         data = cache.get(cache_key)
         
@@ -196,7 +188,7 @@ class CourseViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def filters(self, request):
-        """Get dynamic filter options with caching"""
+        """Get dynamic filter options - Public access"""
         cache_key = 'filters_data'
         data = cache.get(cache_key)
         
@@ -245,33 +237,23 @@ class CourseViewSet(viewsets.ModelViewSet):
 
 
 class AssignmentViewSet(viewsets.ModelViewSet):
-    """
-    Assignment ViewSet
-    Provides CRUD operations for assignments
-    
-    ## Permissions:
-    - GET: Anyone can view
-    - POST/PUT/PATCH/DELETE: Admin only
-    
-    ## Filtering Options:
-    - `?course=slug` - Filter by course
-    - `?is_active=true` - Filter active assignments
-    - `?deadline_after=2026-01-01T00:00:00Z` - Filter after date
-    - `?deadline_before=2026-12-31T23:59:59Z` - Filter before date
-    """
+   
     queryset = Assignment.objects.select_related('course').all()
-    permission_classes = [IsAdminOrReadOnly]
     filterset_class = AssignmentFilter
     search_fields = ['title', 'description', 'instructions', 'course__name']
     ordering_fields = ['title', 'deadline', 'created_at', 'updated_at']
+    
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [AllowAny]
+        else:
+            permission_classes = [IsAdminUser]
+        return [permission() for permission in permission_classes]
     
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
             return AssignmentCreateSerializer
         return AssignmentSerializer
-    
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
     
     def perform_create(self, serializer):
         instance = serializer.save()

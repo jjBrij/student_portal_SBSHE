@@ -122,7 +122,13 @@ class Course(models.Model):
     slug = models.SlugField(max_length=200, unique=True, blank=True)
     introduction = models.TextField(help_text="Rich text supported")
     full_description = models.TextField(help_text="Detailed course description")
-    
+    course_code = models.CharField(
+        max_length=100, 
+        unique=True, 
+        null=True,  # Allow null for existing rows
+        blank=True,
+        help_text="Course code (e.g., CS101)"
+    )
     image = models.ImageField(
         upload_to=course_image_path,
         validators=[validate_image_size],

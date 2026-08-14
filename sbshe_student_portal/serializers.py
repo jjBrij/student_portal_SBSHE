@@ -88,7 +88,7 @@ class CourseListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = [
-            'id', 'name', 'slug', 'department', 'department_name',
+            'id', 'course_code', 'name', 'slug', 'department', 'department_name',
             'department_image', 'introduction', 'image', 'image_url', 
             'duration', 'course_type', 'course_type_display', 
             'is_top_course', 'is_active', 'assignment_count', 'created_at'
@@ -115,7 +115,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = [
-            'id', 'name', 'slug', 'department', 'introduction', 
+            'id', 'name','course_code', 'slug', 'department', 'introduction', 
             'full_description', 'image', 'image_url', 'duration',
             'eligibility', 'course_type', 'course_type_display',
             'is_top_course', 'is_active', 'assignments',
