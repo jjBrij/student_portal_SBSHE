@@ -1,4 +1,5 @@
 # sbshe_student_portal/admin.py
+
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
@@ -7,7 +8,7 @@ from rest_framework.authtoken.models import Token
 from django.db import IntegrityError
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
-from .models import Department, Branch, Course, Assignment
+from .models import Department, Branch, Course, CourseMaterial
 
 
 # Custom User Admin with token cleanup
@@ -21,9 +22,7 @@ class CustomUserAdmin(UserAdmin):
     actions = ['activate_users', 'deactivate_users', 'delete_users_with_tokens']
     
     def has_token(self, obj):
-        """Check if user has a token - return boolean for admin icons"""
         try:
-            # Try to get the token
             Token.objects.get(user=obj)
             return True
         except ObjectDoesNotExist:
@@ -31,7 +30,7 @@ class CustomUserAdmin(UserAdmin):
         except Exception:
             return False
     has_token.short_description = 'Has Token'
-    has_token.boolean = True  # This will show yes/no icons
+    has_token.boolean = True
     
     def activate_users(self, request, queryset):
         updated = queryset.update(is_active=True)
@@ -44,22 +43,19 @@ class CustomUserAdmin(UserAdmin):
     deactivate_users.short_description = "Deactivate selected users"
     
     def delete_users_with_tokens(self, request, queryset):
-        """Delete users and their associated tokens"""
         deleted_count = 0
         error_count = 0
         
         for user in queryset:
             try:
-                # Delete user's token if exists
                 try:
                     token = Token.objects.get(user=user)
                     token.delete()
                 except ObjectDoesNotExist:
-                    pass  # Token doesn't exist, continue
+                    pass
                 except Exception:
-                    pass  # Any other error, continue
+                    pass
                 
-                # Delete user
                 user.delete()
                 deleted_count += 1
             except IntegrityError as e:
@@ -91,17 +87,15 @@ class CustomUserAdmin(UserAdmin):
     delete_users_with_tokens.short_description = "Delete selected users (with tokens)"
 
     def delete_queryset(self, request, queryset):
-        """Override delete to handle tokens"""
         for obj in queryset:
             try:
-                # Delete user's token if exists
                 try:
                     token = Token.objects.get(user=obj)
                     token.delete()
                 except ObjectDoesNotExist:
-                    pass  # Token doesn't exist, continue
+                    pass
                 except Exception:
-                    pass  # Any other error, continue
+                    pass
                 
                 obj.delete()
             except IntegrityError:
@@ -118,7 +112,7 @@ admin.site.register(User, CustomUserAdmin)
 
 @admin.register(Department)
 class DepartmentAdmin(admin.ModelAdmin):
-    list_display = ['name', 'slug', 'image_preview', 'is_active', 'course_count', 'created_at']
+    list_display = ['name', 'slug', 'file_preview', 'is_active', 'course_count', 'created_at']
     list_filter = ['is_active', 'created_at']
     search_fields = ['name', 'description', 'introduction']
     prepopulated_fields = {'slug': ('name',)}
@@ -127,7 +121,7 @@ class DepartmentAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('name', 'slug', 'image')
+            'fields': ('name', 'slug', 'file')
         }),
         ('Description', {
             'fields': ('description', 'introduction')
@@ -141,25 +135,33 @@ class DepartmentAdmin(admin.ModelAdmin):
         }),
     )
     
-    def image_preview(self, obj):
-        if obj.image:
-            return format_html(
-                '<img src="{}" width="60" height="60" style="object-fit:cover; border-radius:5px;" />', 
-                obj.image.url
-            )
-        return format_html('<span style="color:gray;">No Image</span>')
-    image_preview.short_description = 'Preview'
+    def file_preview(self, obj):
+        if obj.file:
+            ext = obj.file.name.split('.')[-1].lower()
+            if ext in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']:
+                return format_html(
+                    '<img src="{}" width="60" height="60" style="object-fit:cover; border-radius:5px;" />', 
+                    obj.file.url
+                )
+            elif ext == 'pdf':
+                return format_html(
+                    '<a href="{}" target="_blank">📄 PDF</a>', 
+                    obj.file.url
+                )
+        return format_html('<span style="color:gray;">No File</span>')
+    file_preview.short_description = 'Preview'
     
     def course_count(self, obj):
         count = obj.courses.filter(is_active=True).count()
         color = 'green' if count > 0 else 'gray'
         return format_html('<span style="color:{}; font-weight:bold;">{}</span>', color, count)
     course_count.short_description = 'Active Courses'
+    course_count.admin_order_field = 'courses__count'  # Allow ordering
 
 
 @admin.register(Branch)
 class BranchAdmin(admin.ModelAdmin):
-    list_display = ['name', 'slug', 'location', 'image_preview', 'is_active', 'created_at']
+    list_display = ['name', 'slug', 'location', 'file_preview', 'is_active', 'created_at']
     list_filter = ['is_active', 'location', 'created_at']
     search_fields = ['name', 'description', 'location']
     prepopulated_fields = {'slug': ('name',)}
@@ -168,7 +170,7 @@ class BranchAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('name', 'slug', 'image')
+            'fields': ('name', 'slug', 'file')
         }),
         ('Description', {
             'fields': ('description', 'location')
@@ -182,22 +184,29 @@ class BranchAdmin(admin.ModelAdmin):
         }),
     )
     
-    def image_preview(self, obj):
-        if obj.image:
-            return format_html(
-                '<img src="{}" width="60" height="60" style="object-fit:cover; border-radius:50%;" />', 
-                obj.image.url
-            )
-        return format_html('<span style="color:gray;">No Image</span>')
-    image_preview.short_description = 'Preview'
+    def file_preview(self, obj):
+        if obj.file:
+            ext = obj.file.name.split('.')[-1].lower()
+            if ext in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']:
+                return format_html(
+                    '<img src="{}" width="60" height="60" style="object-fit:cover; border-radius:50%;" />', 
+                    obj.file.url
+                )
+            elif ext == 'pdf':
+                return format_html(
+                    '<a href="{}" target="_blank">📄 PDF</a>', 
+                    obj.file.url
+                )
+        return format_html('<span style="color:gray;">No File</span>')
+    file_preview.short_description = 'Preview'
 
 
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
     list_display = [
-        'name', 'slug', 'course_code ', 'department', 'course_type', 'duration',
-        'image_preview', 'is_top_course', 'is_active', 
-        'assignment_count', 'created_at'
+        'name', 'slug', 'course_code', 'department', 'course_type', 'duration',
+        'file_preview', 'is_top_course', 'is_active', 
+        'get_material_count', 'created_at'  # Changed from material_count to get_material_count
     ]
     list_filter = ['department', 'course_type', 'is_active', 'is_top_course', 'created_at']
     search_fields = ['name', 'introduction', 'full_description', 'department__name']
@@ -208,7 +217,7 @@ class CourseAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('department', 'name', 'slug', 'course_code', 'image')
+            'fields': ('department', 'name', 'slug', 'course_code', 'file')
         }),
         ('Description', {
             'fields': ('introduction', 'full_description')
@@ -225,20 +234,29 @@ class CourseAdmin(admin.ModelAdmin):
         }),
     )
     
-    def image_preview(self, obj):
-        if obj.image:
-            return format_html(
-                '<img src="{}" width="60" height="60" style="object-fit:cover; border-radius:5px;" />', 
-                obj.image.url
-            )
-        return format_html('<span style="color:gray;">No Image</span>')
-    image_preview.short_description = 'Preview'
+    def file_preview(self, obj):
+        if obj.file:
+            ext = obj.file.name.split('.')[-1].lower()
+            if ext in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']:
+                return format_html(
+                    '<img src="{}" width="60" height="60" style="object-fit:cover; border-radius:5px;" />', 
+                    obj.file.url
+                )
+            elif ext == 'pdf':
+                return format_html(
+                    '<a href="{}" target="_blank">📄 PDF</a>', 
+                    obj.file.url
+                )
+        return format_html('<span style="color:gray;">No File</span>')
+    file_preview.short_description = 'Preview'
     
-    def assignment_count(self, obj):
-        count = obj.assignments.filter(is_active=True).count()
+    def get_material_count(self, obj):
+        """Get count of active materials for this course"""
+        count = obj.materials.filter(is_active=True).count()
         color = 'green' if count > 0 else 'gray'
         return format_html('<span style="color:{}; font-weight:bold;">{}</span>', color, count)
-    assignment_count.short_description = 'Active Assignments'
+    get_material_count.short_description = 'Active Materials'
+    get_material_count.admin_order_field = 'materials__count'
     
     actions = ['mark_as_top_course', 'unmark_as_top_course']
     
@@ -253,18 +271,33 @@ class CourseAdmin(admin.ModelAdmin):
     unmark_as_top_course.short_description = "Unmark selected courses as Top"
 
 
-@admin.register(Assignment)
-class AssignmentAdmin(admin.ModelAdmin):
-    list_display = ['title', 'course', 'deadline', 'is_active', 'has_file', 'created_at']
-    list_filter = ['course', 'is_active', 'deadline', 'created_at']
-    search_fields = ['title', 'description', 'instructions', 'course__name']
+@admin.register(CourseMaterial)
+class CourseMaterialAdmin(admin.ModelAdmin):
+    list_display = [
+        'title', 'material_type', 'course', 'course_code', 'subject_code',
+        'academic_year', 'file_preview', 'deadline', 'is_active', 'created_at'
+    ]
+    list_filter = [
+        'material_type', 'course', 'academic_year', 'is_active', 
+        'deadline', 'created_at'
+    ]
+    search_fields = [
+        'title', 'description', 'instructions', 'course__name', 
+        'course_code', 'subject_code'
+    ]
     autocomplete_fields = ['course']
-    ordering = ['-deadline']
-    readonly_fields = ['created_at', 'updated_at']
+    ordering = ['-created_at']
+    readonly_fields = ['created_at', 'updated_at', 'course_code']
     
     fieldsets = (
-        ('Assignment Details', {
-            'fields': ('course', 'title', 'description', 'instructions')
+        ('Type & Course', {
+            'fields': ('course', 'course_code', 'material_type')
+        }),
+        ('Subject Details', {
+            'fields': ('subject_code', 'academic_year', 'semester')
+        }),
+        ('Content', {
+            'fields': ('title', 'description', 'instructions')
         }),
         ('File & Deadline', {
             'fields': ('file', 'deadline')
@@ -278,9 +311,24 @@ class AssignmentAdmin(admin.ModelAdmin):
         }),
     )
     
-    def has_file(self, obj):
+    def file_preview(self, obj):
         if obj.file:
-            return format_html('<span style="color:green;">✓ File Uploaded</span>')
-        return format_html('<span style="color:red;">✗ No File</span>')
-    has_file.short_description = 'File Status'
-    has_file.boolean = True
+            ext = obj.file.name.split('.')[-1].lower()
+            if ext in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']:
+                return format_html(
+                    '<img src="{}" width="40" height="40" style="object-fit:cover; border-radius:5px;" />', 
+                    obj.file.url
+                )
+            elif ext == 'pdf':
+                return format_html(
+                    '<a href="{}" target="_blank">📄 PDF</a>', 
+                    obj.file.url
+                )
+        return format_html('<span style="color:gray;">No File</span>')
+    file_preview.short_description = 'File'
+    
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if 'delete_selected' in actions:
+            del actions['delete_selected']
+        return actions

@@ -1,3 +1,5 @@
+# sbshe_student_portal/models.py
+
 from django.db import models
 from django.utils.text import slugify
 from django.core.validators import FileExtensionValidator
@@ -6,52 +8,60 @@ from django.contrib.auth.models import User
 import os
 
 # ==================== VALIDATORS ====================
-def validate_image_size(value):
-    """Validate image size (max 5MB)"""
-    filesize = value.size
-    if filesize > 5 * 1024 * 1024:
-        raise ValidationError("Maximum image size is 5MB")
-
-def validate_file_size(value):
+def validate_image_or_pdf_size(value):
     """Validate file size (max 10MB)"""
     filesize = value.size
     if filesize > 10 * 1024 * 1024:
         raise ValidationError("Maximum file size is 10MB")
 
-# ==================== IMAGE UPLOAD PATHS ====================
-def department_image_path(instance, filename):
+def validate_image_or_pdf(value):
+    """Validate that file is an image or PDF"""
+    ext = os.path.splitext(value.name)[1].lower()
+    valid_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.pdf']
+    if ext not in valid_extensions:
+        raise ValidationError(f"Unsupported file type. Allowed: {', '.join(valid_extensions)}")
+    return value
+
+# ==================== UPLOAD PATHS ====================
+def department_file_path(instance, filename):
+    """Upload path for department files"""
     ext = filename.split('.')[-1]
     filename = f"department_{instance.id}_{filename}"
     return f"departments/{instance.slug}/{filename}"
 
-def branch_image_path(instance, filename):
+def branch_file_path(instance, filename):
+    """Upload path for branch files"""
     ext = filename.split('.')[-1]
     filename = f"branch_{instance.id}_{filename}"
     return f"branches/{instance.slug}/{filename}"
 
-def course_image_path(instance, filename):
+def course_file_path(instance, filename):
+    """Upload path for course files"""
     ext = filename.split('.')[-1]
     filename = f"course_{instance.id}_{filename}"
     return f"courses/{instance.department.slug}/{filename}"
 
-def assignment_file_path(instance, filename):
+def material_file_path(instance, filename):
+    """Upload path for course materials (assignments, question papers, syllabus)"""
     ext = filename.split('.')[-1]
     filename = f"{instance.course.id}_{instance.id}_{filename}"
-    return f"assignments/course_{instance.course.id}/{filename}"
+    return f"materials/{instance.get_material_type_display()}/course_{instance.course.id}/{filename}"
 
 # ==================== MODELS ====================
 
 class Department(models.Model):
+    """Department model with image/PDF support"""
     name = models.CharField(max_length=200, unique=True)
     slug = models.SlugField(max_length=200, unique=True, blank=True)
     description = models.TextField()
     introduction = models.TextField(help_text="Brief introduction about the department")
-    image = models.ImageField(
-        upload_to=department_image_path,
-        validators=[validate_image_size],
+    
+    file = models.FileField(
+        upload_to=department_file_path,
+        validators=[validate_image_or_pdf, validate_image_or_pdf_size],
         blank=True,
         null=True,
-        help_text="Department image/photo (max 5MB)"
+        help_text="Department image/photo or PDF (max 10MB)"
     )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -74,16 +84,18 @@ class Department(models.Model):
 
 
 class Branch(models.Model):
+    """Branch model with image/PDF support"""
     name = models.CharField(max_length=200, unique=True)
     slug = models.SlugField(max_length=200, unique=True, blank=True)
     description = models.TextField()
     location = models.CharField(max_length=255)
-    image = models.ImageField(
-        upload_to=branch_image_path,
-        validators=[validate_image_size],
+    
+    file = models.FileField(
+        upload_to=branch_file_path,
+        validators=[validate_image_or_pdf, validate_image_or_pdf_size],
         blank=True,
         null=True,
-        help_text="Branch image/photo (max 5MB)"
+        help_text="Branch image/photo or PDF (max 10MB)"
     )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -107,6 +119,7 @@ class Branch(models.Model):
 
 
 class Course(models.Model):
+    """Course model with image/PDF support"""
     COURSE_TYPE_CHOICES = [
         ('online', 'Online'),
         ('offline', 'Offline'),
@@ -125,16 +138,17 @@ class Course(models.Model):
     course_code = models.CharField(
         max_length=100, 
         unique=True, 
-        null=True,  # Allow null for existing rows
+        null=True,
         blank=True,
         help_text="Course code (e.g., CS101)"
     )
-    image = models.ImageField(
-        upload_to=course_image_path,
-        validators=[validate_image_size],
+    
+    file = models.FileField(
+        upload_to=course_file_path,
+        validators=[validate_image_or_pdf, validate_image_or_pdf_size],
         blank=True,
         null=True,
-        help_text="Course image/thumbnail (max 5MB)"
+        help_text="Course image/thumbnail or PDF (max 10MB)"
     )
     
     duration = models.CharField(
@@ -184,40 +198,129 @@ class Course(models.Model):
         return f"{self.department.name} - {self.name}"
 
 
-class Assignment(models.Model):
+class CourseMaterial(models.Model):
+    """Course Material model - Handles Assignments, Question Papers, Syllabus"""
+    
+    # Material Types
+    MATERIAL_TYPES = [
+        ('assignment', 'Assignment'),
+        ('question_paper', 'Question Paper'),
+        ('syllabus', 'Syllabus'),
+    ]
+    
+    # Year Choices
+    YEAR_CHOICES = [
+        ('1', 'First Year'),
+        ('2', 'Second Year'),
+        ('3', 'Third Year'),
+        ('4', 'Fourth Year'),
+    ]
+    
+    # File extension validators
+    ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']
+    
+    # Core Fields
     course = models.ForeignKey(
         Course,
         on_delete=models.CASCADE,
-        related_name='assignments'
+        related_name='materials'
     )
-    title = models.CharField(max_length=255)
-    description = models.TextField()
-    instructions = models.TextField(help_text="Detailed instructions for the assignment")
+    course_code = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Course code (auto-filled from course)"
+    )
+    material_type = models.CharField(
+        max_length=20,
+        choices=MATERIAL_TYPES,
+        default='assignment',
+        help_text="Type of material (Assignment, Question Paper, Syllabus)"
+    )
+    
+    # Subject Information
+    subject_code = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="Subject code (e.g., CS101, MATH201) - Manually entered by admin"
+    )
+    academic_year = models.CharField(
+        max_length=20,
+        choices=YEAR_CHOICES,
+        blank=True,
+        null=True,
+        help_text="Academic year (e.g., First Year, Second Year, etc.)"
+    )
+    
+    # Title and Description
+    title = models.CharField(
+        max_length=255,
+        help_text="Title of the material"
+    )
+    description = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Description (optional)"
+    )
+    instructions = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Instructions (optional)"
+    )
+    
+    # File Upload
     file = models.FileField(
-        upload_to=assignment_file_path,
+        upload_to=material_file_path,
         validators=[
-            FileExtensionValidator(allowed_extensions=['pdf', 'doc', 'docx', 'txt']),
-            validate_file_size
+            FileExtensionValidator(allowed_extensions=ALLOWED_EXTENSIONS),
+            validate_image_or_pdf_size
         ],
         blank=True,
         null=True,
-        help_text="Optional PDF or document file"
+        help_text="File (PDF or images: JPG, PNG, GIF, BMP, WEBP)"
     )
-    deadline = models.DateTimeField()
+    
+    # Additional Fields
+    deadline = models.DateField(
+        blank=True,
+        null=True,
+        help_text="Deadline (applicable for assignments)"
+    )
+    semester = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text="Semester (e.g., 1st Semester, 2nd Semester)"
+    )
+    
+    # Status
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-deadline']
+        ordering = ['-created_at']
         indexes = [
             models.Index(fields=['course']),
-            models.Index(fields=['deadline']),
+            models.Index(fields=['course_code']),
+            models.Index(fields=['material_type']),
+            models.Index(fields=['subject_code']),
+            models.Index(fields=['academic_year']),
             models.Index(fields=['is_active']),
         ]
 
+    def save(self, *args, **kwargs):
+        # Auto-fill course_code from the related course
+        if self.course and not self.course_code:
+            self.course_code = self.course.course_code
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.course.name} - {self.title}"
+        type_display = dict(self.MATERIAL_TYPES).get(self.material_type, '')
+        year_display = dict(self.YEAR_CHOICES).get(self.academic_year, '')
+        subject_str = f" [{self.subject_code}]" if self.subject_code else ''
+        return f"{self.course.name} - {type_display}: {self.title}{subject_str}"
 
     def delete(self, *args, **kwargs):
         if self.file:
