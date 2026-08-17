@@ -1,24 +1,24 @@
-# sbshe_student_portal/views.py - COMPLETE FIX
+# sbshe_student_portal/views.py
+
 from rest_framework import viewsets, status
-from rest_framework.decorators import action, permission_classes
+from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticatedOrReadOnly, AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from django.core.cache import cache
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
-from .models import Department, Branch, Course, Assignment
+from django.db.models import Prefetch
+from .models import Department, Branch, Course, CourseMaterial
 from .serializers import (
     DepartmentSerializer, BranchSerializer, CourseListSerializer,
-    CourseDetailSerializer, AssignmentSerializer, AssignmentCreateSerializer
+    CourseDetailSerializer, CourseMaterialSerializer, CourseMaterialCreateSerializer
 )
-from .filters import CourseFilter, DepartmentFilter, AssignmentFilter
+from .filters import CourseFilter, DepartmentFilter, CourseMaterialFilter
 from .tasks import log_admin_action_task, cleanup_orphan_files_task
-from .permissions import IsAdminUser, IsAdminOrReadOnly
+from .permissions import IsAdminUser
 
 
 class DepartmentViewSet(viewsets.ModelViewSet):
-  
+    """ViewSet for Department model"""
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
     filterset_class = DepartmentFilter
@@ -26,7 +26,6 @@ class DepartmentViewSet(viewsets.ModelViewSet):
     ordering_fields = ['name', 'created_at', 'updated_at']
     
     def get_permissions(self):
-      
         if self.action in ['list', 'retrieve']:
             permission_classes = [AllowAny]
         else:
@@ -72,7 +71,7 @@ class DepartmentViewSet(viewsets.ModelViewSet):
 
 
 class BranchViewSet(viewsets.ModelViewSet):
-  
+    """ViewSet for Branch model"""
     queryset = Branch.objects.all()
     serializer_class = BranchSerializer
     search_fields = ['name', 'description', 'location']
@@ -108,14 +107,26 @@ class BranchViewSet(viewsets.ModelViewSet):
             model='Branch',
             object_id=instance.id
         )
+    
+    def perform_destroy(self, instance):
+        cache.delete('branches_queryset')
+        cache.delete('filters_data')
+        user_id = self.request.user.id if self.request.user.is_authenticated else None
+        log_admin_action_task.delay(
+            user_id=user_id,
+            action='delete',
+            model='Branch',
+            object_id=instance.id
+        )
+        instance.delete()
 
 
 class CourseViewSet(viewsets.ModelViewSet):
-   
-    queryset = Course.objects.select_related('department').prefetch_related('assignments')
+    """ViewSet for Course model"""
+    queryset = Course.objects.select_related('department').prefetch_related('materials')
     filterset_class = CourseFilter
-    search_fields = ['name', 'introduction', 'course_code','full_description', 'department__name']
-    ordering_fields = ['name', 'course_code','created_at', 'updated_at']
+    search_fields = ['name', 'introduction', 'course_code', 'full_description', 'department__name']
+    ordering_fields = ['name', 'course_code', 'created_at', 'updated_at']
     
     def get_permissions(self):
         if self.action in ['list', 'retrieve', 'top_courses', 'filters']:
@@ -203,7 +214,7 @@ class CourseViewSet(viewsets.ModelViewSet):
                         'id': d.id, 
                         'name': d.name, 
                         'slug': d.slug,
-                        'image_url': d.image.url if d.image else None
+                        'image_url': d.file.url if d.file else None
                     } 
                     for d in departments
                 ],
@@ -212,7 +223,7 @@ class CourseViewSet(viewsets.ModelViewSet):
                         'id': b.id, 
                         'name': b.name, 
                         'slug': b.slug,
-                        'image_url': b.image.url if b.image else None
+                        'image_url': b.file.url if b.file else None
                     } 
                     for b in branches
                 ],
@@ -221,7 +232,7 @@ class CourseViewSet(viewsets.ModelViewSet):
                         'id': c.id, 
                         'name': c.name, 
                         'slug': c.slug,
-                        'image_url': c.image.url if c.image else None
+                        'image_url': c.file.url if c.file else None
                     } 
                     for c in courses
                 ],
@@ -236,15 +247,21 @@ class CourseViewSet(viewsets.ModelViewSet):
         return Response(data)
 
 
-class AssignmentViewSet(viewsets.ModelViewSet):
-   
-    queryset = Assignment.objects.select_related('course').all()
-    filterset_class = AssignmentFilter
-    search_fields = ['title', 'description', 'instructions', 'course__name']
-    ordering_fields = ['title', 'deadline', 'created_at', 'updated_at']
+class CourseMaterialViewSet(viewsets.ModelViewSet):
+    """
+    Course Material ViewSet - Handles Assignments, Question Papers, Syllabus
+    """
+    # Simplified queryset without complex prefetch
+    queryset = CourseMaterial.objects.select_related('course').all()
+    filterset_class = CourseMaterialFilter
+    search_fields = [
+        'title', 'description', 'instructions', 
+        'course__name', 'course_code', 'subject_code'
+    ]
+    ordering_fields = ['title', 'deadline', 'created_at', 'updated_at', 'material_type']
     
     def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
+        if self.action in ['list', 'retrieve', 'types', 'by_type']:
             permission_classes = [AllowAny]
         else:
             permission_classes = [IsAdminUser]
@@ -252,49 +269,77 @@ class AssignmentViewSet(viewsets.ModelViewSet):
     
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
-            return AssignmentCreateSerializer
-        return AssignmentSerializer
+            return CourseMaterialCreateSerializer
+        return CourseMaterialSerializer
+    
+    def get_queryset(self):
+        """Override to ensure proper filtering"""
+        queryset = super().get_queryset()
+        # Apply filters if needed
+        return queryset
+    
+    @action(detail=False, methods=['get'])
+    def types(self, request):
+        """Get available material types for dropdown"""
+        types = [
+            {'value': 'assignment', 'label': 'Assignment'},
+            {'value': 'question_paper', 'label': 'Question Paper'},
+            {'value': 'syllabus', 'label': 'Syllabus'},
+        ]
+        return Response(types)
+    
+    @action(detail=False, methods=['get'])
+    def by_type(self, request):
+        """Filter materials by type"""
+        material_type = request.query_params.get('type')
+        if material_type:
+            queryset = self.get_queryset().filter(
+                material_type=material_type, 
+                is_active=True
+            )
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+        return Response(
+            {'error': 'Type parameter required. Valid types: assignment, question_paper, syllabus'}, 
+            status=400
+        )
     
     def perform_create(self, serializer):
         instance = serializer.save()
-        cache.delete('assignments_queryset')
-        cache.delete('filters_data')
+        cache.delete('materials_queryset')
         user_id = self.request.user.id if self.request.user.is_authenticated else None
         log_admin_action_task.delay(
             user_id=user_id,
             action='create',
-            model='Assignment',
+            model='CourseMaterial',
             object_id=instance.id
         )
     
     def perform_update(self, serializer):
         instance = serializer.save()
-        cache.delete('assignments_queryset')
-        cache.delete('filters_data')
+        cache.delete('materials_queryset')
         user_id = self.request.user.id if self.request.user.is_authenticated else None
         log_admin_action_task.delay(
             user_id=user_id,
             action='update',
-            model='Assignment',
+            model='CourseMaterial',
             object_id=instance.id
         )
     
     def perform_destroy(self, instance):
         if instance.file:
             cleanup_orphan_files_task.delay(instance.file.path)
-        cache.delete('assignments_queryset')
-        cache.delete('filters_data')
+        cache.delete('materials_queryset')
         user_id = self.request.user.id if self.request.user.is_authenticated else None
         log_admin_action_task.delay(
             user_id=user_id,
             action='delete',
-            model='Assignment',
+            model='CourseMaterial',
             object_id=instance.id
         )
         instance.delete()
 
 
-# Root View for API
 class RootView(APIView):
     """
     Root API endpoint showing available endpoints
@@ -309,7 +354,9 @@ class RootView(APIView):
                 "departments": "/api/departments/",
                 "branches": "/api/branches/",
                 "courses": "/api/courses/",
-                "assignments": "/api/assignments/",
+                "materials": "/api/materials/",
+                "materials_types": "/api/materials/types/",
+                "materials_by_type": "/api/materials/by_type/",
                 "top_courses": "/api/courses/top_courses/",
                 "filters": "/api/courses/filters/",
                 "auth": {

@@ -1,9 +1,10 @@
 # sbshe_student_portal/urls.py
+
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     DepartmentViewSet, BranchViewSet, CourseViewSet, 
-    AssignmentViewSet, RootView
+    CourseMaterialViewSet, RootView
 )
 from .authentication import (
     jwt_login, jwt_refresh, jwt_logout, 
@@ -15,7 +16,7 @@ router = DefaultRouter()
 router.register(r'departments', DepartmentViewSet, basename='department')
 router.register(r'branches', BranchViewSet, basename='branch')
 router.register(r'courses', CourseViewSet, basename='course')
-router.register(r'assignments', AssignmentViewSet, basename='assignment')
+router.register(r'materials', CourseMaterialViewSet, basename='material')
 
 # API URL Patterns
 urlpatterns = [
