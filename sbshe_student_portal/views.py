@@ -6,19 +6,18 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from django.core.cache import cache
-from django.db.models import Prefetch
-from .models import Department, Branch, Course, CourseMaterial
+from django.db.models import Q, Count
+from .models import Department, Branch, Course
 from .serializers import (
     DepartmentSerializer, BranchSerializer, CourseListSerializer,
-    CourseDetailSerializer, CourseMaterialSerializer, CourseMaterialCreateSerializer
+    CourseDetailSerializer
 )
-from .filters import CourseFilter, DepartmentFilter, CourseMaterialFilter
-from .tasks import log_admin_action_task, cleanup_orphan_files_task
+from .filters import CourseFilter, DepartmentFilter
+from .tasks import log_admin_action_task
 from .permissions import IsAdminUser
 
 
 class DepartmentViewSet(viewsets.ModelViewSet):
-    """ViewSet for Department model"""
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
     filterset_class = DepartmentFilter
@@ -71,7 +70,6 @@ class DepartmentViewSet(viewsets.ModelViewSet):
 
 
 class BranchViewSet(viewsets.ModelViewSet):
-    """ViewSet for Branch model"""
     queryset = Branch.objects.all()
     serializer_class = BranchSerializer
     search_fields = ['name', 'description', 'location']
@@ -122,8 +120,7 @@ class BranchViewSet(viewsets.ModelViewSet):
 
 
 class CourseViewSet(viewsets.ModelViewSet):
-    """ViewSet for Course model"""
-    queryset = Course.objects.select_related('department').prefetch_related('materials')
+    queryset = Course.objects.select_related('department')
     filterset_class = CourseFilter
     search_fields = ['name', 'introduction', 'course_code', 'full_description', 'department__name']
     ordering_fields = ['name', 'course_code', 'created_at', 'updated_at']
@@ -182,7 +179,6 @@ class CourseViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def top_courses(self, request):
-        """Get top courses - Public access"""
         cache_key = 'top_courses'
         data = cache.get(cache_key)
         
@@ -199,7 +195,6 @@ class CourseViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def filters(self, request):
-        """Get dynamic filter options - Public access"""
         cache_key = 'filters_data'
         data = cache.get(cache_key)
         
@@ -247,127 +242,39 @@ class CourseViewSet(viewsets.ModelViewSet):
         return Response(data)
 
 
-class CourseMaterialViewSet(viewsets.ModelViewSet):
-    """
-    Course Material ViewSet - Handles Assignments, Question Papers, Syllabus
-    """
-    # Simplified queryset without complex prefetch
-    queryset = CourseMaterial.objects.select_related('course').all()
-    filterset_class = CourseMaterialFilter
-    search_fields = [
-        'title', 'description', 'instructions', 
-        'course__name', 'course_code', 'subject_code'
-    ]
-    ordering_fields = ['title', 'deadline', 'created_at', 'updated_at', 'material_type']
-    
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve', 'types', 'by_type']:
-            permission_classes = [AllowAny]
-        else:
-            permission_classes = [IsAdminUser]
-        return [permission() for permission in permission_classes]
-    
-    def get_serializer_class(self):
-        if self.action in ['create', 'update', 'partial_update']:
-            return CourseMaterialCreateSerializer
-        return CourseMaterialSerializer
-    
-    def get_queryset(self):
-        """Override to ensure proper filtering"""
-        queryset = super().get_queryset()
-        # Apply filters if needed
-        return queryset
-    
-    @action(detail=False, methods=['get'])
-    def types(self, request):
-        """Get available material types for dropdown"""
-        types = [
-            {'value': 'assignment', 'label': 'Assignment'},
-            {'value': 'question_paper', 'label': 'Question Paper'},
-            {'value': 'syllabus', 'label': 'Syllabus'},
-        ]
-        return Response(types)
-    
-    @action(detail=False, methods=['get'])
-    def by_type(self, request):
-        """Filter materials by type"""
-        material_type = request.query_params.get('type')
-        if material_type:
-            queryset = self.get_queryset().filter(
-                material_type=material_type, 
-                is_active=True
-            )
-            serializer = self.get_serializer(queryset, many=True)
-            return Response(serializer.data)
-        return Response(
-            {'error': 'Type parameter required. Valid types: assignment, question_paper, syllabus'}, 
-            status=400
-        )
-    
-    def perform_create(self, serializer):
-        instance = serializer.save()
-        cache.delete('materials_queryset')
-        user_id = self.request.user.id if self.request.user.is_authenticated else None
-        log_admin_action_task.delay(
-            user_id=user_id,
-            action='create',
-            model='CourseMaterial',
-            object_id=instance.id
-        )
-    
-    def perform_update(self, serializer):
-        instance = serializer.save()
-        cache.delete('materials_queryset')
-        user_id = self.request.user.id if self.request.user.is_authenticated else None
-        log_admin_action_task.delay(
-            user_id=user_id,
-            action='update',
-            model='CourseMaterial',
-            object_id=instance.id
-        )
-    
-    def perform_destroy(self, instance):
-        if instance.file:
-            cleanup_orphan_files_task.delay(instance.file.path)
-        cache.delete('materials_queryset')
-        user_id = self.request.user.id if self.request.user.is_authenticated else None
-        log_admin_action_task.delay(
-            user_id=user_id,
-            action='delete',
-            model='CourseMaterial',
-            object_id=instance.id
-        )
-        instance.delete()
-
+# sbshe_student_portal/views.py
 
 class RootView(APIView):
-    """
-    Root API endpoint showing available endpoints
-    """
     permission_classes = [AllowAny]
     
     def get(self, request):
+        base_url = f"{request.scheme}://{request.get_host()}"
+        
         return Response({
             "message": "Student Portal API",
             "version": "v1",
+            "base_url": base_url,
             "endpoints": {
-                "departments": "/api/departments/",
-                "branches": "/api/branches/",
-                "courses": "/api/courses/",
-                "materials": "/api/materials/",
-                "materials_types": "/api/materials/types/",
-                "materials_by_type": "/api/materials/by_type/",
-                "top_courses": "/api/courses/top_courses/",
-                "filters": "/api/courses/filters/",
+                "departments": f"{base_url}/api/departments/",
+                "branches": f"{base_url}/api/branches/",
+                "courses": f"{base_url}/api/courses/",
+                "subjects": f"{base_url}/api/materials/subjects/",
+                "materials": f"{base_url}/api/materials/materials/",
+                "subject_material_types": f"{base_url}/api/materials/materials/types/",
+                "subject_materials_by_type": f"{base_url}/api/materials/materials/by_type/",
+                "website_content": f"{base_url}/api/website-content/",  # ADD THIS
+                "student_forms": f"{base_url}/api/student-forms/",
+                "student_forms_stats": f"{base_url}/api/student-forms/stats/",
+                "student_forms_types": f"{base_url}/api/student-forms/copy_types/",
+                "top_courses": f"{base_url}/api/courses/top_courses/",
+                "filters": f"{base_url}/api/courses/filters/",
                 "auth": {
-                    "login": "/api/auth/login/",
-                    "register": "/api/auth/register/",
-                    "refresh": "/api/auth/refresh/",
-                    "logout": "/api/auth/logout/",
-                    "me": "/api/auth/me/"
+                    "login": f"{base_url}/auth/login/",
+                    "register": f"{base_url}/auth/register/",
+                    "refresh": f"{base_url}/auth/refresh/",
+                    "logout": f"{base_url}/auth/logout/",
+                    "me": f"{base_url}/auth/me/"
                 },
-                "swagger_ui": "/swagger/",
-                "redoc": "/redoc/",
-                "admin": "/admin/"
+                "admin": f"{base_url}/admin/"
             }
         })

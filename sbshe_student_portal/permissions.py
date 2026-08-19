@@ -1,3 +1,5 @@
+# sbshe_student_portal/permissions.py
+
 from rest_framework import permissions
 
 class IsAdminOrReadOnly(permissions.BasePermission):
