@@ -8,7 +8,7 @@ from rest_framework.authtoken.models import Token
 from django.db import IntegrityError
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
-from .models import Department, Branch, Course, CourseMaterial
+from .models import Department, Branch, Course
 
 
 # Custom User Admin with token cleanup
@@ -156,7 +156,7 @@ class DepartmentAdmin(admin.ModelAdmin):
         color = 'green' if count > 0 else 'gray'
         return format_html('<span style="color:{}; font-weight:bold;">{}</span>', color, count)
     course_count.short_description = 'Active Courses'
-    course_count.admin_order_field = 'courses__count'  # Allow ordering
+    course_count.admin_order_field = 'courses__count'
 
 
 @admin.register(Branch)
@@ -205,8 +205,7 @@ class BranchAdmin(admin.ModelAdmin):
 class CourseAdmin(admin.ModelAdmin):
     list_display = [
         'name', 'slug', 'course_code', 'department', 'course_type', 'duration',
-        'file_preview', 'is_top_course', 'is_active', 
-        'get_material_count', 'created_at'  # Changed from material_count to get_material_count
+        'file_preview', 'is_top_course', 'is_active', 'created_at'
     ]
     list_filter = ['department', 'course_type', 'is_active', 'is_top_course', 'created_at']
     search_fields = ['name', 'introduction', 'full_description', 'department__name']
@@ -250,14 +249,6 @@ class CourseAdmin(admin.ModelAdmin):
         return format_html('<span style="color:gray;">No File</span>')
     file_preview.short_description = 'Preview'
     
-    def get_material_count(self, obj):
-        """Get count of active materials for this course"""
-        count = obj.materials.filter(is_active=True).count()
-        color = 'green' if count > 0 else 'gray'
-        return format_html('<span style="color:{}; font-weight:bold;">{}</span>', color, count)
-    get_material_count.short_description = 'Active Materials'
-    get_material_count.admin_order_field = 'materials__count'
-    
     actions = ['mark_as_top_course', 'unmark_as_top_course']
     
     def mark_as_top_course(self, request, queryset):
@@ -269,66 +260,3 @@ class CourseAdmin(admin.ModelAdmin):
         updated = queryset.update(is_top_course=False)
         self.message_user(request, f'{updated} courses unmarked as top courses.')
     unmark_as_top_course.short_description = "Unmark selected courses as Top"
-
-
-@admin.register(CourseMaterial)
-class CourseMaterialAdmin(admin.ModelAdmin):
-    list_display = [
-        'title', 'material_type', 'course', 'course_code', 'subject_code',
-        'academic_year', 'file_preview', 'deadline', 'is_active', 'created_at'
-    ]
-    list_filter = [
-        'material_type', 'course', 'academic_year', 'is_active', 
-        'deadline', 'created_at'
-    ]
-    search_fields = [
-        'title', 'description', 'instructions', 'course__name', 
-        'course_code', 'subject_code'
-    ]
-    autocomplete_fields = ['course']
-    ordering = ['-created_at']
-    readonly_fields = ['created_at', 'updated_at', 'course_code']
-    
-    fieldsets = (
-        ('Type & Course', {
-            'fields': ('course', 'course_code', 'material_type')
-        }),
-        ('Subject Details', {
-            'fields': ('subject_code', 'academic_year', 'semester')
-        }),
-        ('Content', {
-            'fields': ('title', 'description', 'instructions')
-        }),
-        ('File & Deadline', {
-            'fields': ('file', 'deadline')
-        }),
-        ('Status', {
-            'fields': ('is_active',)
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    def file_preview(self, obj):
-        if obj.file:
-            ext = obj.file.name.split('.')[-1].lower()
-            if ext in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp']:
-                return format_html(
-                    '<img src="{}" width="40" height="40" style="object-fit:cover; border-radius:5px;" />', 
-                    obj.file.url
-                )
-            elif ext == 'pdf':
-                return format_html(
-                    '<a href="{}" target="_blank">📄 PDF</a>', 
-                    obj.file.url
-                )
-        return format_html('<span style="color:gray;">No File</span>')
-    file_preview.short_description = 'File'
-    
-    def get_actions(self, request):
-        actions = super().get_actions(request)
-        if 'delete_selected' in actions:
-            del actions['delete_selected']
-        return actions

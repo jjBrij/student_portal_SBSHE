@@ -1,18 +1,20 @@
-# config/urls.py - Simplified without Swagger
+# project/urls.py (main project)
+
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny
-
-
+from sbshe_student_portal.views import RootView
 
 urlpatterns = [
-   
     path('admin/', admin.site.urls),
+    # Main API - includes all endpoints
     path('api/', include('sbshe_student_portal.urls')),
+    # Root view
+    path('', RootView.as_view(), name='api-root'),
+    path('api/materials/', include('materials.urls')),  
+        path('api/', include('website_content.urls')),  # ADD THIS
+
 ]
 
 if settings.DEBUG:

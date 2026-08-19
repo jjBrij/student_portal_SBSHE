@@ -1,4 +1,5 @@
 # sbshe_student_portal/apps.py
+
 from django.apps import AppConfig
 
 

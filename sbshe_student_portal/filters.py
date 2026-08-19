@@ -1,7 +1,8 @@
+# sbshe_student_portal/filters.py
 
 import django_filters
 from django.db import models
-from .models import Department, Branch, Course, CourseMaterial
+from .models import Department, Branch, Course
 
 
 class CourseFilter(django_filters.FilterSet):
@@ -43,34 +44,4 @@ class DepartmentFilter(django_filters.FilterSet):
             models.Q(name__icontains=value) |
             models.Q(description__icontains=value) |
             models.Q(introduction__icontains=value)
-        )
-
-
-class CourseMaterialFilter(django_filters.FilterSet):
-    course = django_filters.CharFilter(field_name='course__slug', lookup_expr='exact')
-    course_id = django_filters.NumberFilter(field_name='course_id')
-    course_code = django_filters.CharFilter(field_name='course_code', lookup_expr='icontains')
-    material_type = django_filters.CharFilter(field_name='material_type', lookup_expr='exact')
-    subject_code = django_filters.CharFilter(field_name='subject_code', lookup_expr='icontains')
-    academic_year = django_filters.CharFilter(field_name='academic_year', lookup_expr='exact')
-    is_active = django_filters.BooleanFilter()
-    deadline_after = django_filters.DateFilter(field_name='deadline', lookup_expr='gte')
-    deadline_before = django_filters.DateFilter(field_name='deadline', lookup_expr='lte')
-    search = django_filters.CharFilter(method='filter_search', label='Search')
-    
-    class Meta:
-        model = CourseMaterial
-        fields = [
-            'course', 'course_id', 'course_code', 'material_type',
-            'subject_code', 'academic_year', 'is_active',
-            'deadline_after', 'deadline_before'
-        ]
-    
-    def filter_search(self, queryset, name, value):
-        return queryset.filter(
-            models.Q(title__icontains=value) |
-            models.Q(description__icontains=value) |
-            models.Q(instructions__icontains=value) |
-            models.Q(course__name__icontains=value) |
-            models.Q(subject_code__icontains=value)
         )

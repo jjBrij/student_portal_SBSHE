@@ -1,4 +1,5 @@
 # sbshe_student_portal/tasks.py
+
 from celery import shared_task
 import os
 import logging
@@ -25,16 +26,6 @@ def log_user_login_task(user_id, ip_address):
         logger.info(f"User {user.username} logged in from {ip_address} at {datetime.now()}")
     except Exception as e:
         logger.error(f"Failed to log user login: {e}")
-
-@shared_task
-def cleanup_orphan_files_task(file_path):
-    """Clean up orphan files asynchronously"""
-    try:
-        if file_path and os.path.exists(file_path):
-            os.remove(file_path)
-            logger.info(f"Removed orphan file: {file_path}")
-    except Exception as e:
-        logger.error(f"Failed to remove file {file_path}: {e}")
 
 @shared_task
 def refresh_cache_task():
@@ -67,21 +58,3 @@ def refresh_cache_task():
         logger.info("Cache refreshed successfully")
     except Exception as e:
         logger.error(f"Failed to refresh cache: {e}")
-
-@shared_task
-def cleanup_expired_assignments_task():
-    """Clean up expired assignments"""
-    from .models import Assignment
-    
-    try:
-        cutoff_date = datetime.now() - timedelta(days=30)
-        expired = Assignment.objects.filter(
-            deadline__lt=cutoff_date,
-            is_active=True
-        )
-        count = expired.update(is_active=False)
-        logger.info(f"Deactivated {count} expired assignments")
-        return f"Deactivated {count} expired assignments"
-    except Exception as e:
-        logger.error(f"Failed to cleanup expired assignments: {e}")
-        return f"Error: {e}"
