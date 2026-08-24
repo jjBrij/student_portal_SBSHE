@@ -26,7 +26,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'django_filters',
     'corsheaders',
-     
+    'django_ckeditor_5',
     'sbshe_student_portal',
     'student_form',
     'materials',
@@ -188,5 +188,157 @@ CORS_ALLOW_HEADERS = [
 CSRF_COOKIE_SECURE = False
 CSRF_USE_SESSIONS = False
 CSRF_COOKIE_HTTPONLY = False
+
+CKEDITOR_5_CONFIGS = {
+    'default': {
+        'toolbar': [
+            'heading',
+            '|',
+
+            'bold',
+            'italic',
+            'underline',
+            'strikethrough',
+            'subscript',
+            'superscript',
+
+            '|',
+
+            'fontSize',
+            'fontFamily',
+            'fontColor',
+            'fontBackgroundColor',
+
+            '|',
+
+            'alignment',
+
+            '|',
+
+            'link',
+            'bulletedList',
+            'numberedList',
+
+            '|',
+
+            'outdent',
+            'indent',
+
+            '|',
+
+            'blockQuote',
+            'insertTable',
+            'mediaEmbed',
+
+            '|',
+
+            'undo',
+            'redo',
+        ],
+    },
+
+    'extends': {
+        'toolbar': [
+            'heading',
+            '|',
+
+            'bold',
+            'italic',
+            'underline',
+            'strikethrough',
+
+            '|',
+
+            'fontSize',
+            'fontFamily',
+            'fontColor',
+            'fontBackgroundColor',
+
+            '|',
+
+            'alignment',
+
+            '|',
+
+            'link',
+            'bulletedList',
+            'numberedList',
+
+            '|',
+
+            'outdent',
+            'indent',
+
+            '|',
+
+            'blockQuote',
+            'insertTable',
+            'mediaEmbed',
+
+            '|',
+
+            'undo',
+            'redo',
+        ],
+
+        'heading': {
+            'options': [
+                {
+                    'model': 'paragraph',
+                    'title': 'Paragraph',
+                    'class': 'ck-heading_paragraph',
+                },
+                {
+                    'model': 'heading1',
+                    'view': 'h1',
+                    'title': 'Heading 1',
+                    'class': 'ck-heading_heading1',
+                },
+                {
+                    'model': 'heading2',
+                    'view': 'h2',
+                    'title': 'Heading 2',
+                    'class': 'ck-heading_heading2',
+                },
+                {
+                    'model': 'heading3',
+                    'view': 'h3',
+                    'title': 'Heading 3',
+                    'class': 'ck-heading_heading3',
+                },
+                {
+                    'model': 'heading4',
+                    'view': 'h4',
+                    'title': 'Heading 4',
+                    'class': 'ck-heading_heading4',
+                },
+            ],
+        },
+
+        'image': {
+            'toolbar': [
+                'imageTextAlternative',
+                '|',
+                'imageStyle:inline',
+                'imageStyle:block',
+                'imageStyle:side',
+            ],
+        },
+
+        'table': {
+            'contentToolbar': [
+                'tableColumn',
+                'tableRow',
+                'mergeTableCells',
+                'tableProperties',
+                'tableCellProperties',
+            ],
+        },
+
+        'mediaEmbed': {
+            'previewsInData': True,
+        },
+    },
+}
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
