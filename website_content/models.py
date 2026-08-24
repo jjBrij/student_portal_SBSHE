@@ -2,6 +2,7 @@
 
 from django.db import models
 from django.core.exceptions import ValidationError
+from django_ckeditor_5.fields import CKEditor5Field
 import os
 
 def validate_file_size(value):
@@ -49,7 +50,7 @@ class WebsiteContent(models.Model):
     )
     name = models.CharField(max_length=255)
     short_name = models.CharField(max_length=255, blank=True, null=True)
-    
+    serial_number = models.PositiveIntegerField(blank=True, null=True)
     file = models.FileField(
         upload_to=get_upload_path,
         validators=[validate_file_size],
@@ -59,7 +60,7 @@ class WebsiteContent(models.Model):
     
     short_intro = models.TextField(blank=True, null=True)
     intro = models.TextField(blank=True, null=True)
-    description = models.TextField(blank=True, null=True)
+    description = CKEditor5Field(blank=True, null=True, config_name='extends')
     
     date = models.DateField(blank=True, null=True)
     url_link = models.URLField(max_length=500, blank=True, null=True)

@@ -11,3 +11,5 @@ Pillow==10.1.0
 djangorestframework-simplejwt==5.3.0
 # drf-yasg==1.21.7  # Comment this out
 gunicorn==23.0.0
+django-ckeditor-5==0.2.20
+

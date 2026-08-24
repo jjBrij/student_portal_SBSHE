@@ -2,12 +2,7 @@ from rest_framework import permissions
 
 
 class IsAdminOrPublicCreate(permissions.BasePermission):
-    """
-    Custom permission:
-    - Allow any user to create and submit forms (POST)
-    - Allow any user to view forms (GET)
-    - Only admins can update, delete, or perform other actions
-    """
+   
     def has_permission(self, request, view):
         # Allow GET requests (view) for everyone
         if request.method in permissions.SAFE_METHODS:

@@ -269,11 +269,11 @@ class RootView(APIView):
                 "top_courses": f"{base_url}/api/courses/top_courses/",
                 "filters": f"{base_url}/api/courses/filters/",
                 "auth": {
-                    "login": f"{base_url}/auth/login/",
-                    "register": f"{base_url}/auth/register/",
-                    "refresh": f"{base_url}/auth/refresh/",
-                    "logout": f"{base_url}/auth/logout/",
-                    "me": f"{base_url}/auth/me/"
+                    "login": f"{base_url}/api/auth/login/",
+                    "register": f"{base_url}/api/auth/register/",
+                    "refresh": f"{base_url}/api/auth/refresh/",
+                    "logout": f"{base_url}/api/auth/logout/",
+                    "me": f"{base_url}/api/auth/me/"
                 },
                 "admin": f"{base_url}/admin/"
             }

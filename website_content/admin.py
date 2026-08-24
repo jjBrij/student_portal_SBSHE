@@ -17,13 +17,14 @@ class WebsiteContentAdmin(admin.ModelAdmin):
         'name',
         'menu',
         'short_name',
+        'serial_number',
         'file_preview',
         'is_active',
         'date',
         'created_at'
     ]
     list_filter = ['menu', 'is_active', 'date']
-    search_fields = ['name', 'short_name', 'intro', 'description']
+    search_fields = ['name', 'short_name', 'intro','serial_number', 'description']
     autocomplete_fields = ['menu']
     readonly_fields = ['created_at', 'updated_at']
     
@@ -32,7 +33,7 @@ class WebsiteContentAdmin(admin.ModelAdmin):
             'fields': ('menu', 'name')
         }),
         ('Additional Information', {
-            'fields': ('short_name',)
+            'fields': ('short_name','serial_number')
         }),
         ('File', {
             'fields': ('file',)

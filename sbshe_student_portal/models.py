@@ -1,6 +1,7 @@
 # sbshe_student_portal/models.py
 
 from django.db import models
+from django_ckeditor_5.fields import CKEditor5Field
 from django.utils.text import slugify
 from django.core.validators import FileExtensionValidator
 from django.core.exceptions import ValidationError
@@ -47,9 +48,10 @@ class Department(models.Model):
     """Department model with image/PDF support"""
     name = models.CharField(max_length=200, unique=True)
     slug = models.SlugField(max_length=200, unique=True, blank=True)
-    description = models.TextField()
-    introduction = models.TextField(help_text="Brief introduction about the department")
-    
+    description =CKEditor5Field(blank=True, null=True, config_name='extends',help_text="Rich text supported")
+    introduction = models.TextField(blank=True, null=True, help_text="Brief introduction about the department")
+    serial_number = models.PositiveIntegerField(blank=True, null=True)
+
     file = models.FileField(
         upload_to=department_file_path,
         validators=[validate_image_or_pdf, validate_image_or_pdf_size],
@@ -81,9 +83,10 @@ class Branch(models.Model):
     """Branch model with image/PDF support"""
     name = models.CharField(max_length=200, unique=True)
     slug = models.SlugField(max_length=200, unique=True, blank=True)
-    description = models.TextField()
-    location = models.CharField(max_length=255)
-    
+    description = models.TextField(blank=True, null=True)
+    location = models.CharField(max_length=255,blank=True, null=True)
+  
+
     file = models.FileField(
         upload_to=branch_file_path,
         validators=[validate_image_or_pdf, validate_image_or_pdf_size],
@@ -127,8 +130,9 @@ class Course(models.Model):
     )
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, unique=True, blank=True)
-    introduction = models.TextField(help_text="Rich text supported")
-    full_description = models.TextField(help_text="Detailed course description")
+    introduction = models.TextField(help_text="Rich text supported",blank=True, null=True)
+    full_description = CKEditor5Field(blank=True, null=True, config_name='extends', help_text="Detailed course description")
+    serial_number = models.PositiveIntegerField(blank=True, null=True)
     course_code = models.CharField(
         max_length=100, 
         unique=True, 
@@ -162,7 +166,28 @@ class Course(models.Model):
         default='offline',
         help_text="Course delivery mode"
     )
-    
+     
+    soft_copy_amount=models.DecimalField(
+           max_digits=10,
+           decimal_places=2,
+           null=True,
+           blank=True,
+           help_text="Amount for soft copy in INR"
+    )
+    hard_copy_amount=models.DecimalField(
+           max_digits=10,
+           decimal_places=2,
+           null=True,
+           blank=True,
+           help_text="Amount for hard copy in INR"
+    )
+    courier_charge=models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Courier charge in INR"
+    )
     is_top_course = models.BooleanField(
         default=False,
         help_text="Mark as top/popular course"
