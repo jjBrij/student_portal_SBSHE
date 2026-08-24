@@ -184,7 +184,8 @@ CORS_ALLOW_HEADERS = [
     'accept', 'accept-encoding', 'authorization', 'content-type',
     'dnt', 'origin', 'user-agent', 'x-requested-with'
 ]
-
+DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024
 CSRF_COOKIE_SECURE = False
 CSRF_USE_SESSIONS = False
 CSRF_COOKIE_HTTPONLY = False
