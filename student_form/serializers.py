@@ -1,4 +1,3 @@
-# student_form/serializers.py
 
 from rest_framework import serializers
 from .models import StudentForm
@@ -158,8 +157,7 @@ class StudentFormCreateSerializer(serializers.ModelSerializer):
     
     def validate_email(self, value):
         """Validate email is unique"""
-        if StudentForm.objects.filter(email=value).exists():
-            raise serializers.ValidationError("A student with this email already exists")
+       
         return value
     
     def create(self, validated_data):

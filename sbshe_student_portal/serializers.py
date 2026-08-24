@@ -13,7 +13,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
         fields = [
-            'id', 'name', 'slug', 'description', 'introduction', 
+            'id', 'name', 'slug', 'description', 'introduction', 'serial_number',
             'file', 'file_url', 'file_type', 'file_name',
             'is_active', 'course_count', 'created_at', 'updated_at'
         ]
@@ -83,9 +83,10 @@ class CourseListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = [
-            'id', 'course_code', 'name', 'slug', 'department', 'department_name',
+            'id', 'course_code', 'name', 'slug', 'department', 'department_name','serial_number',
             'department_file', 'introduction', 'file', 'file_url', 'file_type',
             'duration', 'course_type', 'course_type_display', 
+            'soft_copy_amount', 'hard_copy_amount', 'courier_charge',
             'is_top_course', 'is_active', 'created_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
@@ -123,9 +124,10 @@ class CourseDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Course
         fields = [
-            'id', 'name', 'course_code', 'slug', 'department', 'introduction', 
+            'id', 'name', 'course_code', 'slug', 'department', 'introduction', 'serial_number',
             'full_description', 'file', 'file_url', 'file_type', 'duration',
             'eligibility', 'course_type', 'course_type_display',
+            'soft_copy_amount', 'hard_copy_amount', 'courier_charge',
             'is_top_course', 'is_active',
             'created_at', 'updated_at'
         ]

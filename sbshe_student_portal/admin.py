@@ -112,7 +112,7 @@ admin.site.register(User, CustomUserAdmin)
 
 @admin.register(Department)
 class DepartmentAdmin(admin.ModelAdmin):
-    list_display = ['name', 'slug', 'file_preview', 'is_active', 'course_count', 'created_at']
+    list_display = ['name', 'slug', 'file_preview','serial_number', 'is_active', 'course_count', 'created_at']
     list_filter = ['is_active', 'created_at']
     search_fields = ['name', 'description', 'introduction']
     prepopulated_fields = {'slug': ('name',)}
@@ -121,7 +121,7 @@ class DepartmentAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('name', 'slug', 'file')
+            'fields': ('name', 'slug', 'file','serial_number')
         }),
         ('Description', {
             'fields': ('description', 'introduction')
@@ -204,8 +204,8 @@ class BranchAdmin(admin.ModelAdmin):
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
     list_display = [
-        'name', 'slug', 'course_code', 'department', 'course_type', 'duration',
-        'file_preview', 'is_top_course', 'is_active', 'created_at'
+        'name', 'slug', 'course_code', 'department', 'course_type', 'duration','serial_number',
+        'file_preview','soft_copy_amount', 'hard_copy_amount', 'courier_charge', 'is_top_course', 'is_active', 'created_at'
     ]
     list_filter = ['department', 'course_type', 'is_active', 'is_top_course', 'created_at']
     search_fields = ['name', 'introduction', 'full_description', 'department__name']
@@ -216,13 +216,14 @@ class CourseAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('department', 'name', 'slug', 'course_code', 'file')
+            'fields': ('department', 'name', 'slug', 'course_code', 'file',)
         }),
         ('Description', {
             'fields': ('introduction', 'full_description')
         }),
         ('Course Details', {
-            'fields': ('duration', 'eligibility', 'course_type')
+            'fields': ('duration', 'eligibility', 'course_type', 'soft_copy_amount', 'hard_copy_amount', 'courier_charge', 'serial_number')
+
         }),
         ('Status', {
             'fields': ('is_active', 'is_top_course')

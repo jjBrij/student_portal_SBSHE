@@ -17,6 +17,7 @@ class WebsiteContentSerializer(serializers.ModelSerializer):
             'menu_name',
             'name',
             'short_name',
+            'serial_number',
             'file',
             'file_url',
             'file_type',

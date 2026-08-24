@@ -13,7 +13,8 @@ urlpatterns = [
     # Root view
     path('', RootView.as_view(), name='api-root'),
     path('api/materials/', include('materials.urls')),  
-        path('api/', include('website_content.urls')),  # ADD THIS
+    path('api/', include('website_content.urls')),  # ADD THIS
+    path('ckeditor5/', include('django_ckeditor_5.urls')),
 
 ]
 

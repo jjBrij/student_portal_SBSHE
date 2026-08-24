@@ -111,7 +111,7 @@ class SubjectMaterial(models.Model):
     class Meta:
         ordering = ['-uploaded_at']
         # Ensure only one file per type per subject
-        unique_together = ['subject', 'material_type']
+     
 
     def __str__(self):
         return f"{self.subject.subject_code} - {self.get_material_type_display()}"
