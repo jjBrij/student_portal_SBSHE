@@ -13,7 +13,7 @@ class SubjectListSerializer(serializers.ModelSerializer):
     academic_year_display = serializers.CharField(source='get_academic_year_display', read_only=True)
     semester_display = serializers.CharField(source='get_semester_display', read_only=True)
     
-    # Material fields
+    # Material fields - now returning lists
     syllabus = serializers.SerializerMethodField()
     question_paper = serializers.SerializerMethodField()
     study_material = serializers.SerializerMethodField()
@@ -49,35 +49,37 @@ class SubjectListSerializer(serializers.ModelSerializer):
             'updated_at'
         ]
     
-    def get_material_data(self, obj, material_type):
-        """Helper method to get material data by type"""
-        try:
-            material = obj.materials.get(material_type=material_type, is_active=True)
-            request = self.context.get('request')
+    def get_materials_list(self, obj, material_type):
+        """Get ALL materials of a specific type as a list"""
+        materials = obj.materials.filter(material_type=material_type, is_active=True).order_by('-uploaded_at')
+        request = self.context.get('request')
+        
+        result = []
+        for material in materials:
             if material.file:
-                return {
+                result.append({
+                    "id": material.id,
                     "material_type": material_type,
                     "material_type_display": material.get_material_type_display(),
-                    "file": request.build_absolute_uri(material.file.url) if request else material.file.url
-                }
-        except SubjectMaterial.DoesNotExist:
-            pass
-        return None
+                    "file": request.build_absolute_uri(material.file.url) if request else material.file.url,
+                    "uploaded_at": material.uploaded_at
+                })
+        return result if result else None  # Return None if empty, or [] if you prefer empty list
     
     def get_syllabus(self, obj):
-        return self.get_material_data(obj, 'syllabus')
+        return self.get_materials_list(obj, 'syllabus')
     
     def get_question_paper(self, obj):
-        return self.get_material_data(obj, 'question_paper')
+        return self.get_materials_list(obj, 'question_paper')
     
     def get_study_material(self, obj):
-        return self.get_material_data(obj, 'study_material')
+        return self.get_materials_list(obj, 'study_material')
     
     def get_assignment(self, obj):
-        return self.get_material_data(obj, 'assignment')
+        return self.get_materials_list(obj, 'assignment')
     
     def get_assessment(self, obj):
-        return self.get_material_data(obj, 'assessment')
+        return self.get_materials_list(obj, 'assessment')
 
 
 class SubjectDetailSerializer(SubjectListSerializer):
