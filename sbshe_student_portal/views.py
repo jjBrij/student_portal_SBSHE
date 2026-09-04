@@ -1,4 +1,3 @@
-# sbshe_student_portal/views.py
 
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -262,7 +261,8 @@ class RootView(APIView):
                 "materials": f"{base_url}/api/materials/materials/",
                 "subject_material_types": f"{base_url}/api/materials/materials/types/",
                 "subject_materials_by_type": f"{base_url}/api/materials/materials/by_type/",
-                "website_content": f"{base_url}/api/website-content/",  # ADD THIS
+                "website_content": f"{base_url}/api/website-content/",
+                "website_menu":f"{base_url}/api/website-menu/",
                 "student_forms": f"{base_url}/api/student-forms/",
                 "student_forms_stats": f"{base_url}/api/student-forms/stats/",
                 "student_forms_types": f"{base_url}/api/student-forms/copy_types/",
