@@ -37,7 +37,7 @@ class MenuViewSet(viewsets.ModelViewSet):
     queryset = Menu.objects.all()
     serializer_class = MenuSerializer
     filterset_fields = ['is_active', 'parent']
-    search_fields = ['name']
+    search_fields = ['name','slug']
     ordering_fields = ['name', 'created_at']
     ordering = ['name']
     def get_permissions(self):

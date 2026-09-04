@@ -3,6 +3,8 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django_ckeditor_5.fields import CKEditor5Field
+from django.utils.text import slugify
+
 import os
 
 def validate_file_size(value):
@@ -20,6 +22,8 @@ def get_upload_path(instance, filename):
 class Menu(models.Model):
     """Menu model for website navigation"""
     name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=120, unique=True, blank=True)
+
     parent = models.ForeignKey(
         'self',
         on_delete=models.CASCADE,
@@ -37,6 +41,15 @@ class Menu(models.Model):
             models.Index(fields=['name']),
             models.Index(fields=['is_active']),
         ]
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+            original_slug = self.slug
+            counter = 1
+            while Menu.objects.filter(slug=self.slug).exclude(pk=self.pk).exists():
+                self.slug = f"{original_slug}-{counter}"
+                counter += 1
+        super().save(*args, **kwargs)            
 
     def __str__(self):
         return self.name

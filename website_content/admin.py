@@ -6,9 +6,10 @@ from .models import Menu, WebsiteContent
 
 @admin.register(Menu)
 class MenuAdmin(admin.ModelAdmin):
-    list_display = ['name', 'parent', 'is_active', 'created_at']
+    list_display = ['name', 'slug', 'parent', 'is_active', 'created_at']
     list_filter = ['is_active']
-    search_fields = ['name']
+    search_fields = ['name', 'slug']
+    prepopulated_fields = {'slug': ('name',)}
     ordering = ['name']
 
 @admin.register(WebsiteContent)
@@ -24,7 +25,7 @@ class WebsiteContentAdmin(admin.ModelAdmin):
         'created_at'
     ]
     list_filter = ['menu', 'is_active', 'date']
-    search_fields = ['name', 'short_name', 'intro','serial_number', 'description']
+    search_fields = ['name', 'short_name', 'intro', 'serial_number', 'description']
     autocomplete_fields = ['menu']
     readonly_fields = ['created_at', 'updated_at']
     
@@ -33,7 +34,7 @@ class WebsiteContentAdmin(admin.ModelAdmin):
             'fields': ('menu', 'name')
         }),
         ('Additional Information', {
-            'fields': ('short_name','serial_number')
+            'fields': ('short_name', 'serial_number')
         }),
         ('File', {
             'fields': ('file',)
