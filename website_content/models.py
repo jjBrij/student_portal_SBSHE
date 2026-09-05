@@ -1,4 +1,3 @@
-# website_content/models.py
 
 from django.db import models
 from django.core.exceptions import ValidationError
@@ -22,7 +21,7 @@ def get_upload_path(instance, filename):
 class Menu(models.Model):
     """Menu model for website navigation"""
     name = models.CharField(max_length=100, unique=True)
-    slug = models.SlugField(max_length=120, unique=True, blank=True)
+    slug = models.SlugField(max_length=120,  blank=True)
 
     parent = models.ForeignKey(
         'self',
